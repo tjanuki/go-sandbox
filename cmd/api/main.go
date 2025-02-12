@@ -4,6 +4,12 @@ import (
     "encoding/json"
     "log"
     "net/http"
+    "os"
+    "time"
+
+    "go-sandbox/internal/middleware"
+    "go-sandbox/internal/middleware/auth"
+    "go-sandbox/internal/middleware/logging"
 )
 
 type Response struct {
@@ -12,14 +18,35 @@ type Response struct {
 }
 
 func main() {
-    // Define routes
-    http.HandleFunc("/", handleHome)
-    http.HandleFunc("/health", handleHealth)
+    // Initialize services
+    logger := log.New(os.Stdout, "", log.LstdFlags)
+    jwtService := auth.NewJWTService("your-secret-key", 24*time.Hour)
+
+    // Initialize middlewares
+    authMiddleware := auth.NewAuthMiddleware(jwtService)
+    loggingMiddleware := logging.NewLoggingMiddleware(logger)
+
+    // Routes
+    http.HandleFunc("/", middleware.Chain(
+        handleHome,
+        loggingMiddleware.Logger,
+    ))
+
+    http.HandleFunc("/health", middleware.Chain(
+        handleHealth,
+    ))
+
+    http.HandleFunc("/protected", middleware.Chain(
+        handleProtected,
+        loggingMiddleware.Logger,
+        authMiddleware.Authenticate,
+        authMiddleware.RequireRole("admin"),
+    ))
 
     // Start server
-    log.Println("Starting server on :8080")
-    if err := http.ListenAndServe(":8080", nil); err != nil {
-        log.Fatal(err)
+    logger.Println("Server starting on :8090")
+    if err := http.ListenAndServe(":8090", nil); err != nil {
+        logger.Fatal(err)
     }
 }
 
@@ -41,4 +68,8 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
+}
+
+func handleProtected(w http.ResponseWriter, r *http.Request) {
+    // Handler implementation
 }
