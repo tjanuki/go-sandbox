@@ -17,6 +17,15 @@ type Response struct {
     Status  string `json:"status"`
 }
 
+type LoginRequest struct {
+    Username string `json:"username"`
+    Password string `json:"password"`
+}
+
+type LoginResponse struct {
+    Token string `json:"token"`
+}
+
 func main() {
     // Initialize services
     logger := log.New(os.Stdout, "", log.LstdFlags)
@@ -34,6 +43,12 @@ func main() {
 
     http.HandleFunc("/health", middleware.Chain(
         handleHealth,
+        loggingMiddleware.Logger,
+    ))
+
+    http.HandleFunc("/login", middleware.Chain(
+        makeLoginHandler(jwtService),
+        loggingMiddleware.Logger,
     ))
 
     http.HandleFunc("/protected", middleware.Chain(
@@ -50,10 +65,10 @@ func main() {
     }
 }
 
-func handleHome( w http.ResponseWriter, r *http.Request) {
+func handleHome(w http.ResponseWriter, r *http.Request) {
     response := Response{
         Message: "Welcome to Go Sandbox",
-        Status: "success",
+        Status:  "success",
     }
 
     w.Header().Set("Content-Type", "application/json")
@@ -63,13 +78,51 @@ func handleHome( w http.ResponseWriter, r *http.Request) {
 func handleHealth(w http.ResponseWriter, r *http.Request) {
     response := Response{
         Message: "Server is running",
-        Status: "up",
+        Status:  "up",
     }
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
 
+func makeLoginHandler(jwtService *auth.JWTService) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != http.MethodPost {
+            http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+            return
+        }
+
+        var loginReq LoginRequest
+        if err := json.NewDecoder(r.Body).Decode(&loginReq); err != nil {
+            http.Error(w, "Invalid request body", http.StatusBadRequest)
+            return
+        }
+
+        // In a real application, validate credentials against a database
+        if loginReq.Username == "admin" && loginReq.Password == "password" {
+            // Generate token with role
+            token, err := jwtService.GenerateToken(loginReq.Username, "admin")
+            if err != nil {
+                http.Error(w, "Error generating token", http.StatusInternalServerError)
+                return
+            }
+
+            w.Header().Set("Content-Type", "application/json")
+            json.NewEncoder(w).Encode(LoginResponse{Token: token})
+            return
+        }
+
+        http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+    }
+}
+
 func handleProtected(w http.ResponseWriter, r *http.Request) {
-    // Handler implementation
+    userID := r.Context().Value(auth.UserIDKey).(string)
+    response := Response{
+        Message: "Protected endpoint accessed by user: " + userID,
+        Status:  "success",
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
 }
