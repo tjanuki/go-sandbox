@@ -2,6 +2,7 @@ package auth
 
 import (
     "context"
+    "fmt"
     "net/http"
     "strings"
 )
@@ -38,20 +39,33 @@ func (m *AuthMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 
         // Add claims to context
         ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
-        ctx = context.WithValue(ctx, RoleKey, claims.Role)
+        ctx = context.WithValue(ctx, RoleKey, claims.Role)  // Make sure Role is added to context
+
+        // Debug logging
+        fmt.Printf("User ID from token: %s\n", claims.UserID)
+        fmt.Printf("Role from token: %s\n", claims.Role)
+
         next.ServeHTTP(w, r.WithContext(ctx))
     }
 }
 
-// RequireRole creates middleware that checks if user has required role
 func (m *AuthMiddleware) RequireRole(role string) func(http.HandlerFunc) http.HandlerFunc {
     return func(next http.HandlerFunc) http.HandlerFunc {
         return func(w http.ResponseWriter, r *http.Request) {
             userRole, ok := r.Context().Value(RoleKey).(string)
-            if !ok || userRole != role {
+            if !ok {
+                http.Error(w, "Role not found in context", http.StatusInternalServerError)
+                return
+            }
+
+            // Debug logging
+            fmt.Printf("Required role: %s, User role: %s\n", role, userRole)
+
+            if userRole != role {
                 http.Error(w, "Insufficient permissions", http.StatusForbidden)
                 return
             }
+
             next.ServeHTTP(w, r)
         }
     }

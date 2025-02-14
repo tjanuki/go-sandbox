@@ -51,11 +51,12 @@ func main() {
         loggingMiddleware.Logger,
     ))
 
+    // Note the order of middleware: first log, then authenticate, then check role
     http.HandleFunc("/protected", middleware.Chain(
         handleProtected,
-        loggingMiddleware.Logger,
-        authMiddleware.Authenticate,
         authMiddleware.RequireRole("admin"),
+        authMiddleware.Authenticate,
+        loggingMiddleware.Logger,
     ))
 
     // Start server
@@ -118,8 +119,10 @@ func makeLoginHandler(jwtService *auth.JWTService) http.HandlerFunc {
 
 func handleProtected(w http.ResponseWriter, r *http.Request) {
     userID := r.Context().Value(auth.UserIDKey).(string)
+    role := r.Context().Value(auth.RoleKey).(string)  // Get the role from context
+
     response := Response{
-        Message: "Protected endpoint accessed by user: " + userID,
+        Message: "Protected endpoint accessed by user: " + userID + " with role: " + role,
         Status:  "success",
     }
 
