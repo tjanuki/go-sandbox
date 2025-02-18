@@ -13,39 +13,39 @@ var (
 )
 
 type JWTService struct {
-    secretKey []byte
-    accessExpires   time.Duration
-    refreshExpires  time.duration
+    secretKey      []byte
+    accessExpires  time.Duration
+    refreshExpires time.Duration
 }
 
-func NewJWTService(secretKey string, accessExpires time.Duration, refreshExpires time.Duration) *JWTService {
+func NewJWTService(secretKey string, accessExpires, refreshExpires time.Duration) *JWTService {
     return &JWTService{
-        secretKey: []byte(secretKey),
-        accessExpires: accessExpires,
+        secretKey:      []byte(secretKey),
+        accessExpires:  accessExpires,
         refreshExpires: refreshExpires,
     }
 }
 
-func (s *JWTService) GenerateAccessToken(userID, roke string) (string, error) {
+func (s *JWTService) GenerateAccessToken(userID, role string) (string, error) {
     return s.generateToken(userID, role, AccessToken, s.accessExpires)
 }
 
 func (s *JWTService) GenerateRefreshToken(userID, role string) (string, error) {
-    return s.generateToken(userID, roke, RefreshToken, s.refreshExpires)
+    return s.generateToken(userID, role, RefreshToken, s.refreshExpires)
 }
 
-func (s *JWTService) generateToken(userId, role string, tokenType TokenType, expires time.Duration) (string, error) {
+func (s *JWTService) generateToken(userID, role string, tokenType TokenType, expires time.Duration) (string, error) {
     claims := Claims{
-        UserID: userID,
-        Role:   role,
-        TokenType:  tokenType,
-        RegisteredClaims: jwtRegisteredClaims{
-            ExpiresAt:  jwt.NewNumericDate(time.Now().add(expires)),
-            IssuedAt:   jwt.NewNumericDate(time.Now()),
+        UserID:    userID,
+        Role:      role,
+        TokenType: tokenType,
+        RegisteredClaims: jwt.RegisteredClaims{
+            ExpiresAt: jwt.NewNumericDate(time.Now().Add(expires)),
+            IssuedAt:  jwt.NewNumericDate(time.Now()),
         },
     }
 
-    token := jwtNewWithClaims(jwt.SigningMethodHS256, claims)
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     return token.SignedString(s.secretKey)
 }
 

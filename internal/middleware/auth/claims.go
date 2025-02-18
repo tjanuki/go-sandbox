@@ -2,17 +2,19 @@ package auth
 
 import "github.com/golang-jwt/jwt/v5"
 
+// TokenType represents the type of JWT token
 type TokenType string
 
 const (
     AccessToken  TokenType = "access"
-    RefreshToken TokenTYpe = "refresh"
+    RefreshToken TokenType = "refresh"
 )
 
+// Claims represents the JWT claims structure
 type Claims struct {
-    UserID string `json:"user_id"`
-    Role   string `json:"role"`
-    TypeToken TokenType `json:"type_token"`
+    UserID    string    `json:"user_id"`
+    Role      string    `json:"role"`
+    TokenType TokenType `json:"token_type"`
     jwt.RegisteredClaims
 }
 

@@ -22,10 +22,6 @@ type LoginRequest struct {
     Password string `json:"password"`
 }
 
-type LoginResponse struct {
-    Token string `json:"token"`
-}
-
 type TokenResponse struct {
     AccessToken  string `json:"access_token"`
     RefreshToken string `json:"refresh_token"`
@@ -65,7 +61,6 @@ func main() {
         loggingMiddleware.Logger,
     ))
 
-    // Note the order of middleware: first log, then authenticate, then check role
     http.HandleFunc("/protected", middleware.Chain(
         handleProtected,
         authMiddleware.RequireRole("admin"),
@@ -116,7 +111,7 @@ func makeLoginHandler(jwtService *auth.JWTService) http.HandlerFunc {
         // In a real application, validate credentials against a database
         if loginReq.Username == "admin" && loginReq.Password == "password" {
             // Generate access token
-             accessToken, err := jwtService.GenerateAccessToken(loginReq.Username, "admin")
+            accessToken, err := jwtService.GenerateAccessToken(loginReq.Username, "admin")
             if err != nil {
                 http.Error(w, "Error generating access token", http.StatusInternalServerError)
                 return
@@ -184,7 +179,7 @@ func makeRefreshHandler(jwtService *auth.JWTService) http.HandlerFunc {
 
 func handleProtected(w http.ResponseWriter, r *http.Request) {
     userID := r.Context().Value(auth.UserIDKey).(string)
-    role := r.Context().Value(auth.RoleKey).(string)  // Get the role from context
+    role := r.Context().Value(auth.RoleKey).(string)
 
     response := Response{
         Message: "Protected endpoint accessed by user: " + userID + " with role: " + role,
