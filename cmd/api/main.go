@@ -10,6 +10,7 @@ import (
     "go-sandbox/internal/middleware"
     "go-sandbox/internal/middleware/auth"
     "go-sandbox/internal/middleware/logging"
+    "go-sandbox/internal/middleware/ratelimit"
 )
 
 type Response struct {
@@ -40,6 +41,10 @@ func main() {
     authMiddleware := auth.NewAuthMiddleware(jwtService)
     loggingMiddleware := logging.NewLoggingMiddleware(logger)
 
+    // Initialize rate limiters
+    loginLimiter := ratelimit.NewLimiter(2, time.Minute)
+    refreshLimiter := ratelimit.NewLimiter(10, time.Minute)
+
     // Routes
     http.HandleFunc("/", middleware.Chain(
         handleHome,
@@ -53,11 +58,13 @@ func main() {
 
     http.HandleFunc("/login", middleware.Chain(
         makeLoginHandler(jwtService),
+        loginLimiter.RateLimit,
         loggingMiddleware.Logger,
     ))
 
     http.HandleFunc("/refresh", middleware.Chain(
         makeRefreshHandler(jwtService),
+        refreshLimiter.RateLimit,
         loggingMiddleware.Logger,
     ))
 
