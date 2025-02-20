@@ -5,6 +5,8 @@ import (
     "net/http"
     "sync"
     "time"
+    "strings"
+    "encoding/json"
 )
 
 type Limiter struct {
@@ -56,21 +58,27 @@ func (l *Limiter) isAllowed(ip string) bool {
     return false
 }
 
-// RateLimit returns a middleware function that matches the Middleware type
 func (l *Limiter) RateLimit(next http.HandlerFunc) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
+        // Extract real IP address
         ip := r.Header.Get("X-Real-IP")
         if ip == "" {
             ip = r.Header.Get("X-Forwarded-For")
         }
         if ip == "" {
+            // If using RemoteAddr, clean it to remove port number
             ip = r.RemoteAddr
+            if colon := strings.LastIndex(ip, ":"); colon != -1 {
+                ip = ip[:colon]
+            }
         }
 
         if !l.isAllowed(ip) {
             w.Header().Set("Content-Type", "application/json")
             w.WriteHeader(http.StatusTooManyRequests)
-            w.Write([]byte(`{"error": "Rate limit exceeded. Please try again later."}`))
+            json.NewEncoder(w).Encode(map[string]string{
+                "error": "Rate limit exceeded. Please try again later.",
+            })
             return
         }
 
